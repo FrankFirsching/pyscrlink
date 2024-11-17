@@ -3,3 +3,4 @@ build
 dist
 pyscrlink/__pycache__
 pyscrlink.egg-info
+venv
