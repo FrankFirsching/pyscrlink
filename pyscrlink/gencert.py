@@ -159,7 +159,7 @@ def prep_cert_for_app(cert, app, search_path):
     nssdb = None
     for root, dirs, files in os.walk(os.path.join(homedir, search_path)):
         for name in files:
-            if not re.match("key.*\.db", name):
+            if not re.match("key.*\\.db", name):
                 continue
             nssdb = root
             if prep_nss_cert(nssdb, cert, SCRATCH_CERT_NICKNAME):
