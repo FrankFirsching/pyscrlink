@@ -20,14 +20,14 @@ import argparse
 # for BLESession (e.g. BBC micro:bit)
 from bluepy.btle import Scanner, UUID, Peripheral, DefaultDelegate, ScanEntry
 from bluepy.btle import BTLEDisconnectError, BTLEManagementError
-from pyscrlink import bluepy_helper_cap
+from . import bluepy_helper_cap
 
 import threading
 import time
 import queue
 
 # for websockets certificate
-from pyscrlink import gencert
+from . import gencert
 
 logLevel = logging.INFO
 
@@ -41,7 +41,8 @@ logger.setLevel(logLevel)
 logger.addHandler(handler)
 logger.propagate = False
 
-HOSTNAME="device-manager.scratch.mit.edu"
+#HOSTNAME="device-manager.scratch.mit.edu"
+HOSTNAME="localhost"
 scan_seconds=10.0
 
 class Session():
@@ -517,7 +518,8 @@ class BLESession(Session):
             self.delegate.restart_notification_event.set()
         return self.status == self.DONE
 
-async def ws_handler(websocket, path):
+async def ws_handler(websocket):
+    path = websocket.request.path
     sessionTypes = { '/scratch/ble': BLESession, '/scratch/bt': BTSession }
     try:
         logger.info(f"Start session for web socket path: {path}")
@@ -543,7 +545,7 @@ def stack_trace():
     for line in code:
          print(line)
 
-def main():
+async def setup_server():
     global scan_seconds
     global scan_retry
     parser = argparse.ArgumentParser(description='start Scratch-link')
@@ -573,26 +575,11 @@ def main():
     localhost_key = gencert.key_file_path
     ssl_context.load_cert_chain(localhost_cer, localhost_key)
 
-    start_server = websockets.serve(
-         ws_handler, HOSTNAME, 20110, ssl=ssl_context
-    )
+    async with websockets.serve(ws_handler, HOSTNAME, 20110, ssl=ssl_context) as start_server:
+        await start_server.serve_forever()
 
-    while True:
-        try:
-            asyncio.get_event_loop().run_until_complete(start_server)
-            logger.info("Started scratch-link")
-            asyncio.get_event_loop().run_forever()
-        except KeyboardInterrupt as e:
-            stack_trace()
-            break
-        except socket.gaierror as e:
-            logger.error(f"{type(e).__name__}: {e}")
-            logger.info(f"Check internet connection to {HOSTNAME}. If not "
-                        f"available, add '127.0.0.1 {HOSTNAME}' to /etc/hosts.")
-            break
-        except Exception as e:
-            logger.error(f"{type(e).__name__}: {e}")
-            logger.info("Restarting scratch-link...")
+def main():
+    asyncio.run(setup_server())
 
 if __name__ == "__main__":
     main()
